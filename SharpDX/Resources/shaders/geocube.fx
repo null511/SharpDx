@@ -1,35 +1,29 @@
 ﻿// Solid
 
-float4x4 matVP;
+float4x4 matWVP;
+float4 color;
 float3 sunDir;
 
 
 struct VS_IN {
-	float4 pos	: POSITION;
-	float3 nor	: NORMAL;
+	float4 pos	: POSITION0;
 	float2 tex	: TEXCOORD;
-	float4x4 world	: WORLD;
-	float4 col	: COLOR;
+	float3 nor	: NORMAL;
 };
 
 struct PS_IN {
 	float4 pos	: SV_POSITION;
 	float3 nor	: NORMAL;
 	float2 tex	: TEXCOORD;
-	float4 col	: COLOR;
 };
 
 
 PS_IN VS(VS_IN input) {
 	PS_IN output = (PS_IN)0;
 
-	float4x4 matW = input.world;
-	float4 wPos = mul(input.pos, matW);
-
-	output.pos = mul(wPos, matVP);
-	output.nor = mul(input.nor, matW).xyz;
+	output.pos = mul(input.pos, matWVP);
 	output.tex = input.tex;
-	output.col = input.col;
+	output.nor = input.nor;
 
 	return output;
 }
@@ -39,7 +33,7 @@ float4 PS(PS_IN input) : SV_Target {
 	float lit = saturate(dot(n, sunDir));
 
 	float4 output = 0;
-	output.rgb = (0.12 + 0.8*lit) * input.col.rgb;
-	output.a = input.col.a;
+	output.rgb = (0.12 + 0.8*lit) * color.rgb;
+	output.a = color.a;
 	return output;
 }

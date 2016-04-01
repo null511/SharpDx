@@ -8,7 +8,7 @@ namespace SharpDX.Test
     class TestCubeMesh : InstancedMesh
     {
         public TestCubeMesh(DeviceContext context, Vector3 cubeSize) {
-            PrimitiveTopology = Direct3D.PrimitiveTopology.LineList;
+            PrimitiveTopology = Direct3D.PrimitiveTopology.TriangleList;
 
             var MeshBuilder = new MeshBuilder<VertexTestCube, ushort>(VertexTestCube.Info);
             MeshBuilder.AppendCubeLH(cubeSize, (p, n) => new VertexTestCube(p, n, Vector2.Zero));
@@ -18,14 +18,14 @@ namespace SharpDX.Test
         }
 
         private void OnBuildInstance(TestCube entity, ref TestCubeMeshInstance instance) {
-            Matrix.Transpose(ref entity.World, out instance.matWorld);
+            instance.Position = entity.Position;
             instance.Color = entity.Color;
         }
     }
 
     struct TestCubeMeshInstance
     {
-        public Matrix matWorld;
+        public Vector3 Position;
         public Color4 Color;
     }
 }

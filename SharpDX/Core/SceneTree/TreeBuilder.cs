@@ -1,6 +1,7 @@
 ﻿using SharpDX.Core.Filters;
 using SharpDX.Core.Geometry;
 using SharpDX.Core.Shaders;
+using System.Collections.Generic;
 using System.Threading;
 
 namespace SharpDX.Core.SceneTree
@@ -31,12 +32,12 @@ namespace SharpDX.Core.SceneTree
             return tree;
         }
 
-        public Tree Build(IFilter filter, int threadCount) {
+        public Tree Build(IFilter[] filters, int threadCount) {
             CalculateBounds();
             var tree = new Tree(_description);
             tree.Create();
 
-            var runner = new FilterRunner(tree, filter, threadCount);
+            var runner = new FilterRunner(tree, filters, threadCount);
             runner.Shader = Shader;
             runner.Mesh = Mesh;
             runner.Start();

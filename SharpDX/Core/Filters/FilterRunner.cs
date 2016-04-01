@@ -4,6 +4,7 @@ using SharpDX.Core.SceneTree;
 using SharpDX.Core.Shaders;
 using SharpDX.Test;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 
@@ -13,7 +14,7 @@ namespace SharpDX.Core.Filters
     {
         private Tree _tree;
         private int _threadCount, _cubeCount;
-        private IFilter _filter;
+        private IFilter[] _filters;
         private Thread[] _threads;
         private ConcurrentQueue<RegionData> _queue;
         private ConcurrentBag<RenderEntity> _cubes;
@@ -26,9 +27,9 @@ namespace SharpDX.Core.Filters
         public int EntityCount => _entityCount.Sum();
 
 
-        public FilterRunner(Tree tree, IFilter filter, int threadCount) {
+        public FilterRunner(Tree tree, IFilter[] filters, int threadCount) {
             this._tree = tree;
-            this._filter = filter;
+            this._filters = filters;
             this._threadCount = threadCount;
 
             _queue = new ConcurrentQueue<RegionData>();
@@ -73,10 +74,10 @@ namespace SharpDX.Core.Filters
                 _threads[i].Join();
             }
 
-            RenderEntity x;
+            RenderEntity entity;
             while (!_cubes.IsEmpty) {
-                if (_cubes.TryTake(out x)) {
-                    _tree.Insert(x);
+                if (_cubes.TryTake(out entity)) {
+                    _tree.Insert(entity);
                 }
             }
 
@@ -114,7 +115,7 @@ namespace SharpDX.Core.Filters
                         e.Y = y;
                         e.Z = z;
 
-                        if (_filter.Test(e)) {
+                        if (_filters.Any(f => f.Test(e))) {
                             _entityCount[workerIndex]++;
 
                             var cube = new TestCube {

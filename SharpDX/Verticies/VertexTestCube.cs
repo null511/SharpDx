@@ -37,7 +37,7 @@ namespace SharpDX.Verticies
 
         public class Description : IVertexDescription
         {
-            public int Size => 48;
+            public int Size => 36;
             public InputElement[] Elements => _elements;
 
             private static InputElement[] _elements = new[] {
@@ -49,18 +49,15 @@ namespace SharpDX.Verticies
 
         public class InstanceDescription : IVertexDescription
         {
-            public int Size => 80;
+            public int Size => 28;
             public InputElement[] Elements => _elements;
 
             private static InputElement[] _elements = new[] {
                 new InputElement("POSITION", 0, Format.R32G32B32A32_Float, 0, 0, InputClassification.PerVertexData, 0),
                 new InputElement("NORMAL", 0, Format.R32G32B32_Float, 16, 0, InputClassification.PerVertexData, 0),
                 new InputElement("TEXCOORD", 0, Format.R32G32_Float, 28, 0, InputClassification.PerVertexData, 0),
-                new InputElement("WORLD", 0, Format.R32G32B32A32_Float, 0, 1, InputClassification.PerInstanceData, 1),
-                new InputElement("WORLD", 1, Format.R32G32B32A32_Float, 16, 1, InputClassification.PerInstanceData, 1),
-                new InputElement("WORLD", 2, Format.R32G32B32A32_Float, 32, 1, InputClassification.PerInstanceData, 1),
-                new InputElement("WORLD", 3, Format.R32G32B32A32_Float, 48, 1, InputClassification.PerInstanceData, 1),
-                new InputElement("COLOR", 0, Format.R32G32B32A32_Float, 64, 1, InputClassification.PerInstanceData, 1),
+                new InputElement("POSITION", 1, Format.R32G32B32_Float, 0, 1, InputClassification.PerInstanceData, 1),
+                new InputElement("COLOR", 0, Format.R32G32B32A32_Float, 12, 1, InputClassification.PerInstanceData, 1),
             };
         }
     }

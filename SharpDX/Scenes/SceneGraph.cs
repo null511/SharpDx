@@ -1,11 +1,8 @@
 ﻿using SharpDX.Core;
 using SharpDX.Core.Entities;
 using SharpDX.Core.Filters;
-using SharpDX.Core.Geometry;
 using SharpDX.Core.SceneTree;
 using SharpDX.Direct3D11;
-using SharpDX.Filters;
-using SharpDX.Geometry;
 using SharpDX.Test;
 using SharpDX.Verticies;
 using System;
@@ -17,12 +14,15 @@ namespace SharpDX.Scenes
     {
         private const int BuilderThreadCount = 8;
         private static readonly bool _disableTree = false;
+        private static readonly bool _disableInstancing = false;
 
         private readonly EntityCollection entities;
-        private readonly List<EntityCollection> visible;
+        private readonly EntityCollection visible;
+        private readonly List<EntityCollection> visibleInstanced;
         private readonly TestOptions _options;
         private SceneTreeCubeShader _debugShader;
-        private CubeShader _shader;
+        private GeoCubeShader _shader;
+        private GeoCubeShaderInstanced _shaderInstanced;
         private TestCubeMesh _cubeMesh;
         private DebugCubeMesh _debugCubeMesh;
         private TreeBuilder _treeBuilder;
@@ -34,7 +34,8 @@ namespace SharpDX.Scenes
 
         public SceneGraph(TreeDescription description) {
             entities = new EntityCollection();
-            visible = new List<EntityCollection>();
+            visible = new EntityCollection();
+            visibleInstanced = new List<EntityCollection>();
 
             _treeBuilder = new TreeBuilder(description);
 
@@ -55,7 +56,7 @@ namespace SharpDX.Scenes
             Utilities.Dispose(ref _debugShader);
         }
 
-        public void Create(DeviceContext context, View view, Vector3 cubeSize, IFilter filter) {
+        public void Create(DeviceContext context, View view, Vector3 cubeSize, IFilter[] filters) {
             // Cube Mesh
             _cubeMesh = new TestCubeMesh(context, cubeSize);
 
@@ -63,9 +64,20 @@ namespace SharpDX.Scenes
             _debugCubeMesh = new DebugCubeMesh(context);
 
             // Cube Shader
-            _shader = new CubeShader();
-            _shader.Load(context, VertexTestCube.InstanceInfo.Elements);
-            _shader.SetSunDir(ref sunDir);
+            if (_disableInstancing) {
+                _shader = new GeoCubeShader();
+                _shader.Load(context, VertexTestCube.Info);
+                _shader.SetSunDir(ref sunDir);
+
+                _shader.ActionRegistry.Add<TestCube>(e => {
+                    _shader.SetWVP(ref e.World, view);
+                    _shader.SetColor(ref e.Color);
+                });
+            } else {
+                _shaderInstanced = new GeoCubeShaderInstanced();
+                _shaderInstanced.Load(context, VertexTestCube.InstanceInfo);
+                _shaderInstanced.SetSunDir(ref sunDir);
+            }
 
             // Debug-Cube Shader
             _debugShader = new SceneTreeCubeShader();
@@ -77,10 +89,11 @@ namespace SharpDX.Scenes
             });
 
             // Build Tree
-            _treeBuilder.Shader = _shader;
+            if (_disableInstancing) _treeBuilder.Shader = _shader;
+            else _treeBuilder.Shader = _shaderInstanced;
             _treeBuilder.Mesh = _cubeMesh;
 
-            Tree = _treeBuilder.Build(filter, BuilderThreadCount);
+            Tree = _treeBuilder.Build(filters, BuilderThreadCount);
             EntityCount = _treeBuilder.EntityCount;
         }
 
@@ -100,20 +113,26 @@ namespace SharpDX.Scenes
             if (_options.EnableDebugCubeRendering)
                 _options.debugCubeList.Clear();
 
-            _shader.SetVP(view);
-            _shader.Update(context);
-
             _options.Frustum = view.Frustum;
-            Tree.TestByRegion(context, visible, _options);
+            
+            if (_disableInstancing) {
+                Tree.Test(visible, _options);
+                RenderCount = visible.Render(context);
+            } else {
+                Tree.TestByRegion(visibleInstanced, _options);
 
-            var instances = new InstanceCollection();
+                var instances = new InstanceCollection();
 
-            int count = visible.Count;
-            for (int i = 0; i < count; i++) {
-                visible[i].CreateInstances(context, instances);
+                int count = visibleInstanced.Count;
+                for (int i = 0; i < count; i++) {
+                    visibleInstanced[i].CreateInstances(context, instances);
+                }
+
+                _shaderInstanced.SetVP(view);
+                _shaderInstanced.Update(context);
+
+                RenderCount = instances.Render(context);
             }
-
-            instances.Render(context);
 
             if (_options.EnableDebugCubeRendering)
                 RenderDebugCubes(context);
