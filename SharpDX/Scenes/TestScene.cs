@@ -1,18 +1,15 @@
-﻿using SharpDX.Core.Geometry;
+﻿using SharpDX.Core.Filters;
 using SharpDX.Core.SceneTree;
 using SharpDX.Data;
 using SharpDX.Direct3D11;
 using SharpDX.Filters;
-using SharpDX.Geometry;
 using SharpDX.Test;
-using SharpDX.Verticies;
-using System;
 
 namespace SharpDX.Scenes
 {
     class TestScene
     {
-        private const float cubeSize = 6f;
+        private const float cubeSize = 10f;
 
         private SceneGraph sceneGraph;
         private Camera _camera;
@@ -41,9 +38,13 @@ namespace SharpDX.Scenes
         }
 
         public void Create(DeviceContext context) {
-            var filter = new OutlineFilter();
+            var filters = new IFilter[] {
+                new OutlineFilter(),
+                new RandomFilter(400, 100000),
+                new BottomFilter(),
+            };
 
-            sceneGraph.Create(context, _camera, new Vector3(cubeSize), filter);
+            sceneGraph.Create(context, _camera, new Vector3(cubeSize), filters);
         }
 
         private void Input_OnScroll(int dir) {

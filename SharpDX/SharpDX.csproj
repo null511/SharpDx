@@ -100,6 +100,7 @@
     <Compile Include="Core\Filters\FilterRunner.cs" />
     <Compile Include="Core\Filters\IFilter.cs" />
     <Compile Include="Core\Geometry\InstancedMesh.cs" />
+    <Compile Include="Core\RandomEx.cs" />
     <Compile Include="Core\SceneTree\NodeArray.cs" />
     <Compile Include="Core\SceneTree\TreeBuilder.cs" />
     <Compile Include="Core\SceneTree\TreeDescription.cs" />
@@ -107,6 +108,7 @@
     <Compile Include="Core\SceneTree\TreeNode.cs" />
     <Compile Include="Core\SceneTree\RenderCube.cs" />
     <Compile Include="Core\SceneTree\TestOptions.cs" />
+    <Compile Include="Core\ThreadDictionary.cs" />
     <Compile Include="Data\Camera.cs" />
     <Compile Include="Data\Exceptions\ShaderExceptions.cs" />
     <Compile Include="Extensions\ExceptionUtils.cs" />
@@ -120,6 +122,7 @@
     <Compile Include="Core\SceneTree\RegionNode.cs" />
     <Compile Include="Core\Shaders\IShader.cs" />
     <Compile Include="Extensions\CollectionUtils.cs" />
+    <Compile Include="Filters\BottomFilter.cs" />
     <Compile Include="Filters\OutlineFilter.cs" />
     <Compile Include="Filters\RandomFilter.cs" />
     <Compile Include="Geometry\LineCube.cs" />
@@ -130,11 +133,13 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Scenes\SceneGraph.cs" />
+    <Compile Include="Shaders\GeoCubeShaderInstanced.cs" />
     <Compile Include="Test\Input.cs" />
     <Compile Include="Scenes\TestScene.cs" />
     <Compile Include="Core\Shaders\ShaderActionRegistry.cs" />
-    <Compile Include="Test\SceneTreeCubeShader.cs" />
-    <Compile Include="Test\CubeShader.cs" />
+    <Compile Include="Shaders\DebugCubeShader.cs" />
+    <Compile Include="Shaders\GeoCubeShader.cs" />
+    <Compile Include="Test\RandomColor.cs" />
     <Compile Include="Test\TestCube.cs" />
     <Compile Include="Core\Geometry\IVertexDescription.cs" />
     <Compile Include="Test\DebugCubeMesh.cs" />
@@ -167,10 +172,13 @@
     <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\shaders\solid.fx">
+    <None Include="Resources\shaders\geocube.fx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Resources\shaders\line.fx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Resources\shaders\geocube_instanced.fx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <Content Include="sharpdx_direct3d11_1_effects_arm.dll" />

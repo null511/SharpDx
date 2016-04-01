@@ -1,7 +1,6 @@
 ﻿using SharpDX.Core;
+using SharpDX.Core.Geometry;
 using SharpDX.Core.Shaders;
-using SharpDX.D3DCompiler;
-using SharpDX.Data.Exceptions;
 using SharpDX.Direct3D11;
 using System;
 using System.IO;
@@ -10,7 +9,7 @@ using Buffer = SharpDX.Direct3D11.Buffer;
 
 namespace SharpDX.Test
 {
-    class CubeShader : IShader
+    class GeoCubeShaderInstanced : IShader
     {
         private VertexShader vertexShader;
         private PixelShader pixelShader;
@@ -26,7 +25,7 @@ namespace SharpDX.Test
         public ShaderActionRegistry ActionRegistry => _registry;
 
 
-        public CubeShader() {
+        public GeoCubeShaderInstanced() {
             _registry = new ShaderActionRegistry();
         }
 
@@ -40,49 +39,13 @@ namespace SharpDX.Test
             isDisposed = true;
         }
 
-        private CompilationResult Compile(string filename, string entryPoint, string profile) {
-            var result = ShaderBytecode.CompileFromFile(filename, entryPoint, profile);
-            if (result.Bytecode == null)
-                throw new CompilationException(result.Message);
-
-            return result;
-        }
-
-        private InputLayout GetInputLayout(DeviceContext context, byte[] shaderByteCode, InputElement[] elements) {
-            var signature = ShaderSignature.GetInputSignature(shaderByteCode);
-            return new InputLayout(context.Device, signature, elements);
-        }
-
-        public void Load(DeviceContext context, InputElement[] elements)
+        public void Load(DeviceContext context, IVertexDescription vertexInfo)
         {
-            var filename = Path.Combine(Environment.CurrentDirectory, "Resources\\shaders\\solid.fx");
+            var filename = Path.Combine(Environment.CurrentDirectory, "Resources\\shaders\\geocube_instanced.fx");
 
-            try {
-                using (var output = Compile(filename, "VS", "vs_4_0")) {
-                    vertexShader = new VertexShader(context.Device, output);
-                    _layout = GetInputLayout(context, output, elements);
-                }
-            }
-            catch (Exception error) {
-                throw new ShaderCompilerException("Failed to compile vertex shader!", error);
-            }
-
-            try {
-                using (var output = Compile(filename, "PS", "ps_4_0")) {
-                    pixelShader = new PixelShader(context.Device, output);
-                }
-            }
-            catch (Exception error) {
-                throw new ShaderCompilerException("Failed to compile pixel shader!", error);
-            }
-
-            var size = Utilities.SizeOf<DataBuffer>();
-            constantBuffer = new Buffer(context.Device, size,
-                ResourceUsage.Default,
-                BindFlags.ConstantBuffer,
-                CpuAccessFlags.None,
-                ResourceOptionFlags.None,
-                0);
+            vertexShader = ShaderUtils.CompileVS(context, filename, "VS", "vs_4_0", vertexInfo, out _layout);
+            pixelShader = ShaderUtils.CompilePS(context, filename, "PS", "ps_4_0");
+            constantBuffer = ShaderUtils.CreateConstantBuffer<DataBuffer>(context);
         }
 
         public void SetVP(View view) {

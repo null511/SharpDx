@@ -1,5 +1,4 @@
 ﻿using SharpDX.Core.Entities;
-using SharpDX.Direct3D11;
 using System;
 using System.Collections.Generic;
 
@@ -142,7 +141,7 @@ namespace SharpDX.Core.SceneTree
             _root.Test(collection, options);
         }
 
-        public void TestByRegion(DeviceContext context, IList<EntityCollection> collection, TestOptions options) {
+        public void TestByRegion(IList<EntityCollection> collection, TestOptions options) {
             collection.Clear();
             options.debugCubeList?.Clear();
             _root.TestByRegion(collection, options);
