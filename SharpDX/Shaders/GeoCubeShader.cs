@@ -1,7 +1,7 @@
 ﻿using SharpDX.Core;
-using SharpDX.Core.Geometry;
 using SharpDX.Core.Shaders;
 using SharpDX.Direct3D11;
+using SharpDX.Verticies;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -40,11 +40,11 @@ namespace SharpDX.Test
             isDisposed = true;
         }
 
-        public void Load(DeviceContext context, IVertexDescription vertexInfo)
+        public void Load(DeviceContext context)
         {
             var filename = Path.Combine(Environment.CurrentDirectory, "Resources\\shaders\\geocube.fx");
 
-            vertexShader = ShaderUtils.CompileVS(context, filename, "VS", "vs_4_0", vertexInfo, out _layout);
+            vertexShader = ShaderUtils.CompileVS(context, filename, "VS", "vs_4_0", VertexTestCube.Info, out _layout);
             pixelShader = ShaderUtils.CompilePS(context, filename, "PS", "ps_4_0");
             constantBuffer = ShaderUtils.CreateConstantBuffer<DataBuffer>(context);
         }

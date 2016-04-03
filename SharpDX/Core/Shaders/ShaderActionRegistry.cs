@@ -1,41 +1,46 @@
-﻿using SharpDX.Core.Entities;
-using System;
+﻿using System;
 using System.Collections.Generic;
 
 namespace SharpDX.Core.Shaders
 {
     class ShaderActionRegistry
     {
-        private IDictionary<Type, Action<Entity>> _actions;
+        private IDictionary<Type, Action<IObject>> _actions;
 
 
         public ShaderActionRegistry() {
-            _actions = new Dictionary<Type, Action<Entity>>();
+            _actions = new Dictionary<Type, Action<IObject>>();
         }
 
-        public void Add<TEntity>(Action<TEntity> action)
-            where TEntity : Entity
-        {
-            _actions.Add(typeof(TEntity), e => action((TEntity)e));
+        public void Add<TObject>(Action<TObject> action)
+            where TObject : IObject {
+            _actions.Add(typeof(TObject), i => action((TObject)i));
         }
 
         public void Clear() {
             _actions.Clear();
         }
 
-        public Action<Entity> GetAction(Type type)
+        public Action<IObject> GetAction(Type type)
         {
-            Action<Entity> action;
+            Action<IObject> action;
             if (_actions.TryGetValue(type, out action)) return action;
             return null;
         }
 
-        public void Apply<TEntity>(TEntity entity)
-            where TEntity : Entity
+        public void Apply(IObject entity)
         {
             var type = entity.GetType();
             var action = GetAction(type);
-            if (action == null) throw new ApplicationException($"No action found for entity type '{type.Name}'!");
+            if (action == null) throw new ApplicationException($"No action found for type '{type.Name}'!");
+            action.Invoke(entity);
+        }
+
+        public void Apply<TObject>(IObject entity)
+        {
+            var type = typeof(TObject);
+            var action = GetAction(type);
+            if (action == null) throw new ApplicationException($"No action found for type '{type.Name}'!");
             action.Invoke(entity);
         }
     }

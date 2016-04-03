@@ -4,7 +4,6 @@ using SharpDX.Core.Filters;
 using SharpDX.Core.SceneTree;
 using SharpDX.Direct3D11;
 using SharpDX.Test;
-using SharpDX.Verticies;
 using System;
 using System.Collections.Generic;
 
@@ -21,23 +20,27 @@ namespace SharpDX.Scenes
         private readonly List<EntityCollection> visibleInstanced;
         private readonly TestOptions _options;
         private SceneTreeCubeShader _debugShader;
-        private GeoCubeShader _shader;
         private GeoCubeShaderInstanced _shaderInstanced;
+        private GeoCubeShader _shader;
         private TestCubeMesh _cubeMesh;
         private DebugCubeMesh _debugCubeMesh;
-        private TreeBuilder _treeBuilder;
+        private TreeBuilder _builder;
+        private Vector3 sunDir;
 
         public Tree Tree;
         public int EntityCount, RenderCount;
-        private Vector3 sunDir;
 
 
         public SceneGraph(TreeDescription description) {
+            _builder = new TreeBuilder(description);
+
             entities = new EntityCollection();
             visible = new EntityCollection();
             visibleInstanced = new List<EntityCollection>();
 
-            _treeBuilder = new TreeBuilder(description);
+            _shader = new GeoCubeShader();
+            _shaderInstanced = new GeoCubeShaderInstanced();
+            _debugShader = new SceneTreeCubeShader();
 
             _options = new TestOptions {
                 EnableDebugCubeRendering = false,
@@ -53,54 +56,43 @@ namespace SharpDX.Scenes
             Utilities.Dispose(ref _cubeMesh);
             Utilities.Dispose(ref _debugCubeMesh);
             Utilities.Dispose(ref _shader);
+            Utilities.Dispose(ref _shaderInstanced);
             Utilities.Dispose(ref _debugShader);
         }
 
         public void Create(DeviceContext context, View view, Vector3 cubeSize, IFilter[] filters) {
-            // Cube Mesh
             _cubeMesh = new TestCubeMesh(context, cubeSize);
-
-            // Debug-Cube Mesh
             _debugCubeMesh = new DebugCubeMesh(context);
 
-            // Cube Shader
-            if (_disableInstancing) {
-                _shader = new GeoCubeShader();
-                _shader.Load(context, VertexTestCube.Info);
-                _shader.SetSunDir(ref sunDir);
+            _shader.Load(context);
+            _shader.SetSunDir(ref sunDir);
 
-                _shader.ActionRegistry.Add<TestCube>(e => {
-                    _shader.SetWVP(ref e.World, view);
-                    _shader.SetColor(ref e.Color);
-                });
-            } else {
-                _shaderInstanced = new GeoCubeShaderInstanced();
-                _shaderInstanced.Load(context, VertexTestCube.InstanceInfo);
-                _shaderInstanced.SetSunDir(ref sunDir);
-            }
+            _shader.ActionRegistry.Add<TestCube>(e => {
+                _shader.SetWVP(ref e.World, view);
+                _shader.SetColor(ref e.Color);
+            });
 
-            // Debug-Cube Shader
-            _debugShader = new SceneTreeCubeShader();
+            _shaderInstanced.Load(context);
+            _shaderInstanced.SetSunDir(ref sunDir);
+
             _debugShader.Load(context);
-
             _debugShader.ActionRegistry.Add<RenderCube>(e => {
                 _debugShader.SetWVP(ref e.World, view);
                 _debugShader.SetColor(ref e.Color);
             });
 
-            // Build Tree
-            if (_disableInstancing) _treeBuilder.Shader = _shader;
-            else _treeBuilder.Shader = _shaderInstanced;
-            _treeBuilder.Mesh = _cubeMesh;
+            if (_disableInstancing) _builder.Shader = _shader;
+            else _builder.Shader = _shaderInstanced;
+            _builder.Mesh = _cubeMesh;
 
-            Tree = _treeBuilder.Build(filters, BuilderThreadCount);
-            EntityCount = _treeBuilder.EntityCount;
+            Tree = _builder.Build(filters, BuilderThreadCount);
+            EntityCount = _builder.EntityCount;
         }
 
         public void Update() {
-            int count = entities.AllEntities.Count;
+            int count = entities.All.Count;
             for (int i = 0; i < count; i++) {
-                entities.AllEntities[i].Update();
+                entities.All[i].Update();
             }
         }
 

@@ -1,4 +1,5 @@
-﻿using SharpDX.Data;
+﻿using SharpDX.Core.Text;
+using SharpDX.Data;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
@@ -18,7 +19,7 @@ namespace SharpDX
     {
         private const string Title = "SharpDx";
 
-        private static RenderForm form;
+        private static RenderForm _form;
         private static Device device;
         private static SwapChain swapChain;
         private static SwapChainDescription swapChainDesc;
@@ -26,29 +27,31 @@ namespace SharpDX
         private static RenderTargetView renderView;
         private static DepthStencilView depthView;
         private static Factory factory;
-        private static FrameCounter fps;
+        private static FrameCounter _fps;
         private static Stopwatch clock;
         private static bool userResized;
         private static long elapsedPrevious;
 
-        public static RenderForm Form => form;
-        public static int FormWidth => form.ClientSize.Width;
-        public static int FormHeight => form.ClientSize.Height;
+        public static RenderForm Form => _form;
+        public static FrameCounter Fps => _fps;
+        public static int FormWidth => _form.ClientSize.Width;
+        public static int FormHeight => _form.ClientSize.Height;
         private static Color Background = new Color(0, 0, 200, 0);
 
         private static TestScene scene = new TestScene();
         private static bool isSceneCreated;
 
+        private static TextDevice _textDevice;
+        public static TextDevice TextDevice => _textDevice;
+
 
         [STAThread]
         static void Main() {
-            form = new RenderForm();
-            form.StartPosition = FormStartPosition.CenterScreen;
-            form.Size = new Size(800, 600);
-            form.UserResized += (sender, e) => userResized = true;
-            form.KeyUp += Form_KeyUp;
-
-            SetTitle();
+            _form = new RenderForm();
+            _form.StartPosition = FormStartPosition.CenterScreen;
+            _form.Size = new Size(800, 600);
+            _form.UserResized += (sender, e) => userResized = true;
+            _form.KeyUp += Form_KeyUp;
 
             Exception fatalError = null;
             try {
@@ -60,7 +63,7 @@ namespace SharpDX
                 Initialize();
 
                 userResized = true;
-                RenderLoop.Run(form, Process);
+                RenderLoop.Run(_form, Process);
             }
             catch (Exception error) {
                 fatalError = error;
@@ -77,29 +80,34 @@ namespace SharpDX
         }
 
         private static void Initialize() {
-            fps = new FrameCounter();
-            fps.OnUpdate += v => SetTitle(v);
+            _fps = new FrameCounter();
+            //fps.OnUpdate += v => SetTitle(v);
 
-            swapChainDesc = new SwapChainDescription() {
+            swapChainDesc = new SwapChainDescription {
                 BufferCount = 1,
                 ModeDescription = new ModeDescription(FormWidth, FormHeight, new Rational(60, 1), Format.R8G8B8A8_UNorm),
                 IsWindowed = true,
-                OutputHandle = form.Handle,
+                OutputHandle = _form.Handle,
                 SampleDescription = new SampleDescription(1, 0),
                 SwapEffect = SwapEffect.Discard,
                 Usage = Usage.RenderTargetOutput,
             };
 
-            Device.CreateWithSwapChain(DriverType.Hardware, DeviceCreationFlags.None, swapChainDesc, out device, out swapChain);
+            var deviceOptions = DeviceCreationFlags.Debug | DeviceCreationFlags.BgraSupport;
+            Device.CreateWithSwapChain(DriverType.Hardware, deviceOptions, swapChainDesc, out device, out swapChain);
+
+            _textDevice = new TextDevice();
 
             factory = swapChain.GetParent<Factory>();
-            factory.MakeWindowAssociation(form.Handle, WindowAssociationFlags.IgnoreAll);
+            factory.MakeWindowAssociation(_form.Handle, WindowAssociationFlags.IgnoreAll);
 
             clock = new Stopwatch();
             clock.Start();
         }
 
         private static void Dispose() {
+            Utilities.Dispose(ref _textDevice);
+
             scene?.Dispose();
 
             depthBuffer?.Dispose();
@@ -114,21 +122,21 @@ namespace SharpDX
         private static void Process() {
             var context = device.ImmediateContext;
 
+            if (!isSceneCreated) {
+                scene.Initialize(context);
+                isSceneCreated = true;
+            }
+
             if (userResized) {
                 Resize(context);
                 userResized = false;
-            }
-
-            if (!isSceneCreated) {
-                scene.Create(context);
-                isSceneCreated = true;
             }
 
             var elapsedCurrent = clock.ElapsedMilliseconds;
             var elapsed = elapsedCurrent - elapsedPrevious;
             var time = elapsed / 1000f;
             elapsedPrevious = elapsedCurrent;
-            fps.Update(elapsed);
+            _fps.Update(elapsed);
 
             scene.Update(time);
 
@@ -136,6 +144,12 @@ namespace SharpDX
             context.ClearRenderTargetView(renderView, Background);
 
             scene.Render(context);
+
+            _textDevice.BeginDraw();
+
+            scene.RenderText(_textDevice);
+
+            _textDevice.EndDraw();
 
             swapChain.Present(0, PresentFlags.None);
         }
@@ -145,10 +159,12 @@ namespace SharpDX
             Utilities.Dispose(ref renderView);
             Utilities.Dispose(ref depthBuffer);
             Utilities.Dispose(ref depthView);
+            _textDevice.ResizePre();
 
             swapChain.ResizeBuffers(swapChainDesc.BufferCount, FormWidth, FormHeight, Format.Unknown, SwapChainFlags.None);
 
             backBuffer = Resource.FromSwapChain<Texture2D>(swapChain, 0);
+            _textDevice.ResizePost(backBuffer);
 
             renderView = new RenderTargetView(device, backBuffer);
 
@@ -185,22 +201,22 @@ namespace SharpDX
                     if (e.Alt) swapChain.IsFullScreen = !swapChain.IsFullScreen;
                     break;
                 case Keys.Escape:
-                    form.Close();
+                    _form.Close();
                     break;
             }
         }
 
         //-----------------------------
 
-        private static void SetTitle(int? frameCount = null) {
-            var text = Title;
-            if (frameCount.HasValue)
-                text += $" [{frameCount.Value}]";
+        //private static void SetTitle(int? frameCount = null) {
+        //    var text = Title;
+        //    if (frameCount.HasValue)
+        //        text += $" [{frameCount.Value}]";
 
-            if (scene != null)
-                text += $" [{scene.RenderCount}/{scene.EntityCount}]";
+        //    if (scene != null)
+        //        text += $" [{scene.RenderCount}/{scene.EntityCount}]";
 
-            form.Text = text;
-        }
+        //    _form.Text = text;
+        //}
     }
 }

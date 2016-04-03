@@ -5,45 +5,28 @@ using System.Collections.Generic;
 
 namespace SharpDX.Core.Entities
 {
-    class EntityCollection
+    class EntityCollection : ObjectCollection<Entity>
     {
-        private readonly ShaderMeshDictionary<Mesh, IList<Entity>> entities;
-
-        public IList<Entity> AllEntities;
-
-
-        public EntityCollection() {
-            AllEntities = new List<Entity>();
-            entities = new ShaderMeshDictionary<Mesh, IList<Entity>>();
-        }
-
-        public bool Any() {
-            return AllEntities.Count > 0;
-        }
-
         public void Add(RenderEntity entity) {
-            GetEntityList(entity.Shader, entity.Mesh).Add(entity);
-            AllEntities.Add(entity);
+            base.Add(entity, entity.Shader, entity.Mesh);
         }
 
         public void AddRange(IList<RenderEntity> entities) {
-            for (int i = 0; i < entities.Count; i++)
-                Add(entities[i]);
+            RenderEntity e;
+            for (int i = 0; i < entities.Count; i++) {
+                e = entities[i];
+                Add(e, e.Shader, e.Mesh);
+            }
         }
 
-        public void Clear() {
-            AllEntities.Clear();
-            entities.Clear();
-        }
-
-        public int Render(DeviceContext context) {
+        public override int Render(DeviceContext context) {
             IShader shader;
             int entityCount;
             Entity entity;
             Mesh mesh;
 
             var renderCount = 0;
-            foreach (var shaderKey in entities) {
+            foreach (var shaderKey in _objects) {
                 shader = shaderKey.Key;
                 shader.Apply(context);
 
@@ -68,15 +51,11 @@ namespace SharpDX.Core.Entities
             return renderCount;
         }
 
-        private IList<Entity> GetEntityList(IShader shader, Mesh mesh) {
-            return entities.Get(shader, mesh, () => new List<Entity>());
-        }
-
         public void CreateInstances(DeviceContext context, InstanceCollection collection) {
             IShader shader;
             InstancedMesh mesh;
 
-            foreach (var shaderKey in entities) {
+            foreach (var shaderKey in _objects) {
                 shader = shaderKey.Key;
 
                 foreach (var meshKey in shaderKey.Value) {

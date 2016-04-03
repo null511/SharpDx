@@ -1,7 +1,7 @@
 ﻿using SharpDX.Core;
-using SharpDX.Core.Geometry;
 using SharpDX.Core.Shaders;
 using SharpDX.Direct3D11;
+using SharpDX.Verticies;
 using System;
 using System.IO;
 using System.Runtime.InteropServices;
@@ -17,6 +17,8 @@ namespace SharpDX.Test
         private Matrix _vp, _vpT;
         private Buffer constantBuffer;
         private Vector3 _sunDir;
+        private DataBuffer _streamBuffer;
+        private DataStream _stream;
         private bool isDisposed;
 
         private bool _isBufferValid = false;
@@ -39,11 +41,11 @@ namespace SharpDX.Test
             isDisposed = true;
         }
 
-        public void Load(DeviceContext context, IVertexDescription vertexInfo)
+        public void Load(DeviceContext context)
         {
             var filename = Path.Combine(Environment.CurrentDirectory, "Resources\\shaders\\geocube_instanced.fx");
 
-            vertexShader = ShaderUtils.CompileVS(context, filename, "VS", "vs_4_0", vertexInfo, out _layout);
+            vertexShader = ShaderUtils.CompileVS(context, filename, "VS", "vs_4_0", VertexTestCube.InstanceInfo, out _layout);
             pixelShader = ShaderUtils.CompilePS(context, filename, "PS", "ps_4_0");
             constantBuffer = ShaderUtils.CreateConstantBuffer<DataBuffer>(context);
         }
@@ -77,12 +79,9 @@ namespace SharpDX.Test
         }
 
         private void updateBuffer(DeviceContext context) {
-            var data = new DataBuffer {
-                matVP = _vpT,
-                sunDir = _sunDir,
-            };
-
-            context.UpdateSubresource(ref data, constantBuffer);
+            _streamBuffer.matVP = _vpT;
+            _streamBuffer.sunDir = _sunDir;
+            ShaderUtils.UpdateConstantBuffer(context, constantBuffer, ref _streamBuffer);
             _isBufferValid = false;
         }
 

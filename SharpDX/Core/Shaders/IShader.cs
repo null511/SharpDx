@@ -59,11 +59,20 @@ namespace SharpDX.Core.Shaders
         {
             var size = Utilities.SizeOf<TInstance>();
             return new Buffer(context.Device, size,
-                ResourceUsage.Default,
+                ResourceUsage.Dynamic,
                 BindFlags.ConstantBuffer,
-                CpuAccessFlags.None,
+                CpuAccessFlags.Write,
                 ResourceOptionFlags.None,
                 0);
+        }
+
+        public static void UpdateConstantBuffer<T>(DeviceContext context, Buffer buffer, ref T data)
+            where T : struct
+        {
+            DataStream stream;
+            context.MapSubresource(buffer, MapMode.WriteDiscard, MapFlags.None, out stream);
+            stream.Write(data);
+            context.UnmapSubresource(buffer, 0);
         }
     }
 }
