@@ -1,13 +1,16 @@
 ﻿using SharpDX.Core.Filters;
+using SharpDX.Core.Quad;
 using SharpDX.Core.SceneTree;
+using SharpDX.Core.Text;
 using SharpDX.Data;
 using SharpDX.Direct3D11;
 using SharpDX.Filters;
 using SharpDX.Test;
+using System;
 
 namespace SharpDX.Scenes
 {
-    class TestScene
+    class TestScene : IDisposable
     {
         private const float cubeSize = 10f;
 
@@ -15,36 +18,78 @@ namespace SharpDX.Scenes
         private Camera _camera;
         private Input _input;
 
-        public int EntityCount => sceneGraph.EntityCount;
-        public int RenderCount => sceneGraph.RenderCount;
+        private QuadManager _quadMgr;
+        private DebugText _debugText;
+        private BlendState _textBlendState, _blendState;
+        private DepthStencilState _textDepthState, _depthState;
 
 
         public TestScene() {
-            sceneGraph = new SceneGraph(new TreeDescription {
+            var description = new TreeDescription {
                 MaxLevels = 6,
                 RegionCountX = 8,
                 RegionCountY = 2,
                 RegionCountZ = 8,
                 CubeSize = new Vector3(cubeSize),
-            });
+            };
 
+            sceneGraph = new SceneGraph(description);
+            _quadMgr = new QuadManager();
+            _debugText = new DebugText();
             _camera = new Camera();
             _input = new Input();
             _input.OnScroll += Input_OnScroll;
         }
 
         public void Dispose() {
+            Utilities.Dispose(ref _quadMgr);
             Utilities.Dispose(ref sceneGraph);
+            Utilities.Dispose(ref _debugText);
+            Utilities.Dispose(ref _textBlendState);
+            Utilities.Dispose(ref _textDepthState);
         }
 
-        public void Create(DeviceContext context) {
+        public void Initialize(DeviceContext context) {
+            _quadMgr.Initialize(context);
+
+            _debugText.Initialize(Program.TextDevice);
+            _quadMgr.Add(_debugText.Quad);
+
             var filters = new IFilter[] {
                 new OutlineFilter(),
                 new RandomFilter(400, 100000),
                 new BottomFilter(),
             };
 
+            Program.Fps.OnUpdate += Fps_OnUpdate;
+
             sceneGraph.Create(context, _camera, new Vector3(cubeSize), filters);
+
+            var textBlendDesc = BlendStateDescription.Default();
+            textBlendDesc.RenderTarget[0] = new RenderTargetBlendDescription(
+                true,
+                BlendOption.SourceAlpha,
+                BlendOption.InverseSourceAlpha,
+                BlendOperation.Add,
+                BlendOption.One,
+                BlendOption.Zero,
+                BlendOperation.Add,
+                ColorWriteMaskFlags.All);
+
+
+            var textDepthDesc = DepthStencilStateDescription.Default();
+            textDepthDesc.IsDepthEnabled = false;
+
+            _blendState = new BlendState(context.Device, BlendStateDescription.Default());
+            _depthState = new DepthStencilState(context.Device, DepthStencilStateDescription.Default());
+            _textBlendState = new BlendState(context.Device, textBlendDesc);
+            _textDepthState = new DepthStencilState(context.Device, textDepthDesc);
+        }
+
+        private void Fps_OnUpdate(int value) {
+            _debugText.SetFps(value);
+            _debugText.SetRenderCount(sceneGraph.RenderCount);
+            _debugText.SetEntityCount(sceneGraph.EntityCount);
         }
 
         private void Input_OnScroll(int dir) {
@@ -54,6 +99,7 @@ namespace SharpDX.Scenes
 
         public void Resize() {
             _camera.InvalidateProjection();
+            _debugText.Resize();
         }
 
         public void Update(float time) {
@@ -76,7 +122,19 @@ namespace SharpDX.Scenes
         }
 
         public void Render(DeviceContext context) {
+            context.OutputMerger.BlendState = _blendState;
+            context.OutputMerger.DepthStencilState = _depthState;
+
             sceneGraph.Render(context, _camera);
+
+            context.OutputMerger.BlendState = _textBlendState;
+            context.OutputMerger.DepthStencilState = _textDepthState;
+
+            _quadMgr.Render(context);
+        }
+
+        public void RenderText(TextDevice context) {
+            _debugText.Render(context);
         }
     }
 }

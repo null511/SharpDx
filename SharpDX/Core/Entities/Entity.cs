@@ -1,6 +1,6 @@
 ﻿namespace SharpDX.Core.Entities
 {
-    class Entity
+    class Entity : IObject
     {
         public Vector3 Position;
         public BoundingBox Bounds, WorldBounds;
