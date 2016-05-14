@@ -1,10 +1,10 @@
 ﻿using SharpDX.Core.Entities;
-using SharpDX.Direct3D11;
+using System;
 using System.Collections.Generic;
 
 namespace SharpDX.Core.SceneTree
 {
-    class TreeNode
+    class TreeNode : IDisposable
     {
         public bool IsBase;
         public BoundingBox Bounds, BoundsEx;
@@ -14,6 +14,14 @@ namespace SharpDX.Core.SceneTree
 
         public Region Region => _region;
 
+
+        public void Dispose() {
+            if (IsBase)
+                _region.Dispose();
+            else
+                for (int i = 0; i < _children.Count; i++)
+                    _children[i].Dispose();
+        }
 
         public void Create(ref BoundingBox bounds, int maxLevel) {
             this.Bounds = bounds;
@@ -92,11 +100,28 @@ namespace SharpDX.Core.SceneTree
             }
         }
 
+        public void TestByRegionBatched(Context context, IInstanceCollection collection, int batchLevel, TestOptions options) {
+            ContainmentType x;
+            options.Frustum.Contains(ref BoundsEx, out x);
+            if (x == ContainmentType.Disjoint) return;
+
+            if (x == ContainmentType.Contains) {
+                AddAllRegionBatches(context, collection, batchLevel, options);
+            }
+            else if (IsBase) {
+                _region.TestBatched(context, collection, batchLevel, options);
+            }
+            else {
+                for (int i = 0; i < _children.Count; i++)
+                    _children[i].TestByRegionBatched(context, collection, batchLevel, options);
+            }
+        }
+
         protected void AddAll(EntityCollection collection, TestOptions options) {
             if (IsBase) {
                 _region.AddAll(collection, options);
             } else {
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < _children.Count; i++)
                     _children[i].AddAll(collection, options);
             }
         }
@@ -109,8 +134,17 @@ namespace SharpDX.Core.SceneTree
                 if (entityCollection.Any())
                 collection.Add(entityCollection);
             } else {
-                for (int i = 0; i < 8; i++)
+                for (int i = 0; i < _children.Count; i++)
                     _children[i].AddAllRegions(collection, options);
+            }
+        }
+
+        protected void AddAllRegionBatches(Context context, IInstanceCollection collection, int batchLevel, TestOptions options) {
+            if (IsBase) {
+                _region.AddAllBatches(context, collection, batchLevel, options);
+            } else {
+                for (int i = 0; i < _children.Count; i++)
+                    _children[i].AddAllRegionBatches(context, collection, batchLevel, options);
             }
         }
     }

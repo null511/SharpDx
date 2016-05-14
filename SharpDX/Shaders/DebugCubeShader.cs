@@ -31,6 +31,7 @@ namespace SharpDX.Test
             if (isDisposed) return;
 
             _registry.Clear();
+            Utilities.Dispose(ref constantBuffer);
             Utilities.Dispose(ref vertexShader);
             Utilities.Dispose(ref pixelShader);
             Utilities.Dispose(ref _layout);

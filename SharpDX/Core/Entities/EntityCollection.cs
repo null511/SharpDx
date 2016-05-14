@@ -19,23 +19,44 @@ namespace SharpDX.Core.Entities
             }
         }
 
+        public void ClearEntities() {
+            foreach (var shaderKey in _objects) {
+                foreach (var meshKey in shaderKey.Value) {
+                    meshKey.Value.Clear();
+                }
+            }
+        }
+
         public override int Render(DeviceContext context) {
             IShader shader;
             int entityCount;
             Entity entity;
             Mesh mesh;
 
+            var isShaderApplied = false;
+            var isMeshApplied = false;
+
             var renderCount = 0;
             foreach (var shaderKey in _objects) {
                 shader = shaderKey.Key;
-                shader.Apply(context);
+                isShaderApplied = false;
 
                 foreach (var meshKey in shaderKey.Value) {
                     mesh = meshKey.Key;
-                    mesh.Apply(context);
+                    isMeshApplied = false;
 
                     entityCount = meshKey.Value.Count;
                     for (int i = 0; i < entityCount; i++) {
+                        if (!isShaderApplied) {
+                            shader.Apply(context);
+                            isShaderApplied = true;
+                        }
+
+                        if (!isMeshApplied) {
+                            mesh.Apply(context);
+                            isMeshApplied = true;
+                        }
+
                         entity = meshKey.Value[i];
                         entity.Update();
 
@@ -51,7 +72,7 @@ namespace SharpDX.Core.Entities
             return renderCount;
         }
 
-        public void CreateInstances(DeviceContext context, InstanceCollection collection) {
+        public void CreateInstances(DeviceContext context, IInstanceCollection collection) {
             IShader shader;
             InstancedMesh mesh;
 
@@ -60,7 +81,6 @@ namespace SharpDX.Core.Entities
 
                 foreach (var meshKey in shaderKey.Value) {
                     mesh = (InstancedMesh)meshKey.Key;
-                    if (mesh == null) return;
 
                     var data = mesh.GenerateInstances(context, meshKey.Value);
                     collection.Add(data, shader, mesh);

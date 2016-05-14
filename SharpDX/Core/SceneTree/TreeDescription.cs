@@ -8,6 +8,7 @@
         public int RegionCountZ;
         public BoundingBox Bounds;
         public Vector3 CubeSize;
+        public int BatchLevel;
 
 
         public void CalculateSize(out Vector3 treeSize) {

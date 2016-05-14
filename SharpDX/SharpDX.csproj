@@ -94,13 +94,32 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Context.cs" />
+    <Compile Include="Core\DepthStateManager.cs" />
+    <Compile Include="Core\DictionaryExtensions.cs" />
+    <Compile Include="Core\Documents\BaseDocument.cs" />
+    <Compile Include="Core\Documents\MapDocument.cs" />
+    <Compile Include="Core\Documents\RegionDocument.cs" />
+    <Compile Include="Core\Documents\SceneDocument.cs" />
+    <Compile Include="Core\Entities\IInstanceCollection.cs" />
+    <Compile Include="Core\Entities\InstanceList.cs" />
+    <Compile Include="Core\Entities\MeshList.cs" />
+    <Compile Include="Core\Entities\MeshDictionary.cs" />
+    <Compile Include="Core\Entities\ShaderMeshList.cs" />
+    <Compile Include="Core\Input.cs" />
+    <Compile Include="Core\Quad\QuadMeshColored.cs" />
+    <Compile Include="Core\Quad\QuadTextured.cs" />
+    <Compile Include="Core\Scenes\SceneBase.cs" />
+    <Compile Include="Core\Shaders\ShaderList.cs" />
+    <Compile Include="Core\StateManager.cs" />
+    <Compile Include="Core\BlendStateManager.cs" />
     <Compile Include="Core\BoundingBoxUtils.cs" />
     <Compile Include="Core\DepthUtils.cs" />
     <Compile Include="Core\ObjectCollection.cs" />
     <Compile Include="Core\Entities\EntityCollection.cs" />
     <Compile Include="Core\Entities\InstanceCollection.cs" />
     <Compile Include="Core\Entities\InstanceData.cs" />
-    <Compile Include="Core\Entities\ShaderDictionary.cs" />
+    <Compile Include="Core\Shaders\ShaderDictionary.cs" />
     <Compile Include="Core\Entities\ShaderMeshDictionary.cs" />
     <Compile Include="Core\Filters\FilterRunner.cs" />
     <Compile Include="Core\Filters\IFilter.cs" />
@@ -109,9 +128,11 @@
     <Compile Include="Core\Quad\Quad.cs" />
     <Compile Include="Core\Quad\QuadCollection.cs" />
     <Compile Include="Core\Quad\QuadManager.cs" />
-    <Compile Include="Core\Quad\ColoredScreenQuad.cs" />
-    <Compile Include="Core\Quad\QuadMesh.cs" />
+    <Compile Include="Core\Quad\QuadColored.cs" />
+    <Compile Include="Core\Quad\QuadMeshTextured.cs" />
     <Compile Include="Core\RandomEx.cs" />
+    <Compile Include="Core\Scenes\IScene.cs" />
+    <Compile Include="Core\Scenes\SceneManager.cs" />
     <Compile Include="Core\SceneTree\NodeArray.cs" />
     <Compile Include="Core\SceneTree\TreeBuilder.cs" />
     <Compile Include="Core\SceneTree\TreeDescription.cs" />
@@ -133,7 +154,9 @@
     <Compile Include="Core\SceneTree\RegionNode.cs" />
     <Compile Include="Core\Shaders\IShader.cs" />
     <Compile Include="Extensions\CollectionUtils.cs" />
+    <Compile Include="Filters\ConeFilter.cs" />
     <Compile Include="Filters\BottomFilter.cs" />
+    <Compile Include="Filters\OutlineAllFilter.cs" />
     <Compile Include="Filters\OutlineFilter.cs" />
     <Compile Include="Filters\RandomFilter.cs" />
     <Compile Include="Geometry\LineCube.cs" />
@@ -143,11 +166,19 @@
     <Compile Include="Core\Geometry\MeshBuilder.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Scenes\LoadScene.cs" />
+    <Compile Include="Scenes\LoadScene.ui.cs">
+      <DependentUpon>LoadScene.cs</DependentUpon>
+    </Compile>
+    <Compile Include="Scenes\MainMenuScene.cs" />
+    <Compile Include="Scenes\MainMenuScene.ui.cs">
+      <DependentUpon>MainMenuScene.cs</DependentUpon>
+    </Compile>
     <Compile Include="Scenes\SceneGraph.cs" />
-    <Compile Include="Shaders\ColoredQuadShader.cs" />
+    <Compile Include="Shaders\QuadShaderColored.cs" />
+    <Compile Include="Shaders\QuadShaderTextured.cs" />
     <Compile Include="Shaders\GeoCubeShaderInstanced.cs" />
     <Compile Include="Test\DebugText.cs" />
-    <Compile Include="Test\Input.cs" />
     <Compile Include="Scenes\TestScene.cs" />
     <Compile Include="Core\Shaders\ShaderActionRegistry.cs" />
     <Compile Include="Shaders\DebugCubeShader.cs" />
@@ -157,9 +188,24 @@
     <Compile Include="Core\Geometry\IVertexDescription.cs" />
     <Compile Include="Test\DebugCubeMesh.cs" />
     <Compile Include="Test\TestCubeMesh.cs" />
-    <Compile Include="Core\Text\TextDevice.cs" />
-    <Compile Include="Core\Text\TextWriter.cs" />
+    <Compile Include="UI\Controls\Button.cs" />
+    <Compile Include="UI\Controls\ContainerBase.cs" />
+    <Compile Include="UI\Controls\PanelColored.cs" />
+    <Compile Include="UI\Controls\PanelTextured.cs" />
+    <Compile Include="UI\IUiBufferedControl.cs" />
+    <Compile Include="UI\IUiControl.cs" />
+    <Compile Include="UI\Controls\Label.cs" />
+    <Compile Include="UI\UiControlEvents.cs" />
+    <Compile Include="UI\Panel.cs" />
+    <Compile Include="UI\Controls\TextButton.cs" />
+    <Compile Include="UI\UiBuffer.cs" />
+    <Compile Include="UI\UiBufferedControlBase.cs" />
+    <Compile Include="UI\UiControlBase.cs" />
+    <Compile Include="UI\UiControlCollection.cs" />
+    <Compile Include="UI\UiManager.cs" />
+    <Compile Include="UI\UiUpdateEvent.cs" />
     <Compile Include="Verticies\VertexPosition.cs" />
+    <Compile Include="Verticies\VertexPositionTexture.cs" />
     <Compile Include="Verticies\VertexTestCube.cs" />
     <Compile Include="Verticies\VertexPositionNormalColor.cs" />
     <Compile Include="Verticies\VertexPositionColor.cs" />
@@ -199,6 +245,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\shaders\quad_colored.fx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Resources\shaders\quad_textured.fx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <Content Include="sharpdx_direct3d11_1_effects_arm.dll" />

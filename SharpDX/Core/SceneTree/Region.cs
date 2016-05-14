@@ -62,6 +62,10 @@ namespace SharpDX.Core.SceneTree
             base.Test(collection, options);
         }
 
+        public new void TestBatched(Context context, IInstanceCollection collection, int batchLevel, TestOptions options) {
+            base.TestBatched(context, collection, batchLevel, options);
+        }
+
         public static void CalculateSize(ref Vector3 cubeSize, int maxLevel, out Vector3 regionSize) {
             var cubeCount = DepthUtils.GetFaceCount(maxLevel);
             regionSize.X = cubeSize.X * cubeCount;
@@ -71,6 +75,10 @@ namespace SharpDX.Core.SceneTree
 
         public new void AddAll(EntityCollection collection, TestOptions options) {
             base.AddAll(collection, options);
+        }
+
+        public new void AddAllBatches(Context context, IInstanceCollection collection, int batchLevel, TestOptions options) {
+            base.AddAllBatches(context, collection, batchLevel, options);
         }
     }
 }

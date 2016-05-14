@@ -12,14 +12,14 @@ namespace SharpDX.Core
     abstract class ObjectCollection<TObject> : IDisposable
         where TObject : IObject
     {
-        protected readonly ShaderMeshDictionary<Mesh, List<TObject>> _objects;
+        protected readonly ShaderMeshDictionary<Mesh, TObject> _objects;
 
         public readonly List<TObject> All;
 
 
         public ObjectCollection() {
             All = new List<TObject>();
-            _objects = new ShaderMeshDictionary<Mesh, List<TObject>>();
+            _objects = new ShaderMeshDictionary<Mesh, TObject>();
         }
 
         ~ObjectCollection() {
@@ -33,7 +33,9 @@ namespace SharpDX.Core
 
         protected virtual void Dispose(bool disposing) {
             All.OfType<IDisposable>()
-                .Each(i => i.Dispose());
+                .Each(x => x.Dispose());
+
+            Clear();
         }
 
         public virtual bool Any() {
@@ -41,12 +43,13 @@ namespace SharpDX.Core
         }
 
         public virtual void Add(TObject @object, IShader shader, Mesh mesh) {
-            GetObjectList(shader, mesh).Add(@object);
+            _objects.GetOrCreate(shader, mesh).Add(@object);
             All.Add(@object);
         }
 
         public virtual void Remove(TObject item, IShader shader, Mesh mesh) {
-            _objects.Get(shader, mesh)?.Remove(item);
+            _objects.TryGet(shader, mesh)?.Remove(item);
+            All.Remove(item);
         }
 
         public virtual void Clear() {
@@ -55,9 +58,5 @@ namespace SharpDX.Core
         }
 
         public abstract int Render(DeviceContext context);
-
-        protected List<TObject> GetObjectList(IShader shader, Mesh mesh) {
-            return _objects.Get(shader, mesh, () => new List<TObject>());
-        }
     }
 }

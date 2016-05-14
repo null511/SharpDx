@@ -1,6 +1,6 @@
 ﻿namespace SharpDX.Core.Quad
 {
-    class ColoredScreenQuad : Quad
+    class QuadColored : Quad
     {
         public Color4 Color;
     }

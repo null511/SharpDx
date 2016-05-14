@@ -1,5 +1,7 @@
-﻿using SharpDX.Core.Text;
+﻿using SharpDX.Core;
+using SharpDX.Core.Scenes;
 using SharpDX.Data;
+using SharpDX.Diagnostics;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
@@ -9,9 +11,9 @@ using SharpDX.Windows;
 using System;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
 using Device = SharpDX.Direct3D11.Device;
-using Resource = SharpDX.Direct3D11.Resource;
 
 namespace SharpDX
 {
@@ -19,30 +21,23 @@ namespace SharpDX
     {
         private const string Title = "SharpDx";
 
+        private static Context _context;
         private static RenderForm _form;
-        private static Device device;
         private static SwapChain swapChain;
         private static SwapChainDescription swapChainDesc;
-        private static Texture2D backBuffer, depthBuffer;
-        private static RenderTargetView renderView;
-        private static DepthStencilView depthView;
         private static Factory factory;
         private static FrameCounter _fps;
         private static Stopwatch clock;
         private static bool userResized;
         private static long elapsedPrevious;
+        private static SceneManager _sceneMgr;
+        private static bool isSceneCreated;
 
         public static RenderForm Form => _form;
         public static FrameCounter Fps => _fps;
         public static int FormWidth => _form.ClientSize.Width;
         public static int FormHeight => _form.ClientSize.Height;
-        private static Color Background = new Color(0, 0, 200, 0);
-
-        private static TestScene scene = new TestScene();
-        private static bool isSceneCreated;
-
-        private static TextDevice _textDevice;
-        public static TextDevice TextDevice => _textDevice;
+        private static Color Background = new Color(0, 0, 0, 0);
 
 
         [STAThread]
@@ -57,7 +52,8 @@ namespace SharpDX
             try {
 #if DEBUG
                 // Debugging Only! Tracks dispose references
-                Configuration.EnableObjectTracking = true;
+                // THIS IS INCREDIBLY SLOW WITH OLDER DEBUGGER
+                //Configuration.EnableObjectTracking = true;
 #endif
 
                 Initialize();
@@ -70,7 +66,17 @@ namespace SharpDX
             }
             finally {
                 Dispose();
+                GC.Collect();
             }
+
+            var active = ObjectTracker.FindActiveObjects();
+            var unreleased = ObjectTracker.ReportActiveObjects();
+            Console.WriteLine("\n==========================");
+            Console.WriteLine("Active Objects\n");
+            Console.WriteLine(unreleased);
+            if (active.Any())
+                Console.WriteLine(string.Join(",", active));
+            Console.WriteLine();
 
             if (fatalError != null) {
                 var message = fatalError.UnfoldMessage();
@@ -81,7 +87,8 @@ namespace SharpDX
 
         private static void Initialize() {
             _fps = new FrameCounter();
-            //fps.OnUpdate += v => SetTitle(v);
+
+            _context = new Context();
 
             swapChainDesc = new SwapChainDescription {
                 BufferCount = 1,
@@ -94,41 +101,36 @@ namespace SharpDX
             };
 
             var deviceOptions = DeviceCreationFlags.Debug | DeviceCreationFlags.BgraSupport;
-            Device.CreateWithSwapChain(DriverType.Hardware, deviceOptions, swapChainDesc, out device, out swapChain);
-
-            _textDevice = new TextDevice();
+            Device.CreateWithSwapChain(DriverType.Hardware, deviceOptions, swapChainDesc, out _context.Device, out swapChain);
 
             factory = swapChain.GetParent<Factory>();
             factory.MakeWindowAssociation(_form.Handle, WindowAssociationFlags.IgnoreAll);
+
+            _sceneMgr = new SceneManager();
+            _sceneMgr.Add(new MainMenuScene());
+            _sceneMgr.Add(new LoadScene());
+            _sceneMgr.Add(new TestScene());
 
             clock = new Stopwatch();
             clock.Start();
         }
 
         private static void Dispose() {
-            Utilities.Dispose(ref _textDevice);
-
-            scene?.Dispose();
-
-            depthBuffer?.Dispose();
-            depthView?.Dispose();
-            renderView?.Dispose();
-            backBuffer?.Dispose();
-            device?.Dispose();
-            swapChain?.Dispose();
-            factory?.Dispose();
+            Utilities.Dispose(ref _sceneMgr);
+            Utilities.Dispose(ref swapChain);
+            Utilities.Dispose(ref factory);
+            Utilities.Dispose(ref _form);
+            Utilities.Dispose(ref _context);
         }
 
         private static void Process() {
-            var context = device.ImmediateContext;
-
             if (!isSceneCreated) {
-                scene.Initialize(context);
+                _sceneMgr.LoadImmediate<MainMenuScene>(_context);
                 isSceneCreated = true;
             }
 
             if (userResized) {
-                Resize(context);
+                Resize();
                 userResized = false;
             }
 
@@ -138,55 +140,23 @@ namespace SharpDX
             elapsedPrevious = elapsedCurrent;
             _fps.Update(elapsed);
 
-            scene.Update(time);
+            _sceneMgr.Update(time);
 
-            context.ClearDepthStencilView(depthView, DepthStencilClearFlags.Depth, 1f, 0);
-            context.ClearRenderTargetView(renderView, Background);
-
-            scene.Render(context);
-
-            _textDevice.BeginDraw();
-
-            scene.RenderText(_textDevice);
-
-            _textDevice.EndDraw();
+            _sceneMgr.Render(_context);
 
             swapChain.Present(0, PresentFlags.None);
         }
 
-        private static void Resize(DeviceContext context) {
-            Utilities.Dispose(ref backBuffer);
-            Utilities.Dispose(ref renderView);
-            Utilities.Dispose(ref depthBuffer);
-            Utilities.Dispose(ref depthView);
-            _textDevice.ResizePre();
+        private static void Resize() {
+            _context.Resize(swapChain, swapChainDesc.BufferCount, FormWidth, FormHeight);
 
-            swapChain.ResizeBuffers(swapChainDesc.BufferCount, FormWidth, FormHeight, Format.Unknown, SwapChainFlags.None);
+            _sceneMgr.Resize();
+        }
 
-            backBuffer = Resource.FromSwapChain<Texture2D>(swapChain, 0);
-            _textDevice.ResizePost(backBuffer);
-
-            renderView = new RenderTargetView(device, backBuffer);
-
-            depthBuffer = new Texture2D(device, new Texture2DDescription() {
-                Format = Format.D32_Float,
-                ArraySize = 1,
-                MipLevels = 1,
-                Width = FormWidth,
-                Height = FormHeight,
-                SampleDescription = new SampleDescription(1, 0),
-                Usage = ResourceUsage.Default,
-                BindFlags = BindFlags.DepthStencil,
-                CpuAccessFlags = CpuAccessFlags.None,
-                OptionFlags = ResourceOptionFlags.None,
-            });
-
-            depthView = new DepthStencilView(device, depthBuffer);
-
-            context.Rasterizer.SetViewport(new Viewport(0, 0, FormWidth, FormHeight, 0f, 1f));
-            context.OutputMerger.SetTargets(depthView, renderView);
-
-            scene.Resize();
+        public static void GoTo<T>()
+            where T : IScene
+        {
+            _sceneMgr.Load<T>();
         }
 
         private static void Form_KeyUp(object sender, KeyEventArgs e) {
@@ -200,23 +170,7 @@ namespace SharpDX
                 case Keys.Enter:
                     if (e.Alt) swapChain.IsFullScreen = !swapChain.IsFullScreen;
                     break;
-                case Keys.Escape:
-                    _form.Close();
-                    break;
             }
         }
-
-        //-----------------------------
-
-        //private static void SetTitle(int? frameCount = null) {
-        //    var text = Title;
-        //    if (frameCount.HasValue)
-        //        text += $" [{frameCount.Value}]";
-
-        //    if (scene != null)
-        //        text += $" [{scene.RenderCount}/{scene.EntityCount}]";
-
-        //    _form.Text = text;
-        //}
     }
 }

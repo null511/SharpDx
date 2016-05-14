@@ -5,13 +5,18 @@ using System.Runtime.InteropServices;
 
 namespace SharpDX.Verticies
 {
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Explicit, Size = 48)]
     struct VertexPositionNormalColor
     {
         public static IVertexDescription Info = new Description();
 
+        [FieldOffset(0)]
         public Vector4 Position;
+
+        [FieldOffset(16)]
         public Vector3 Normal;
+
+        [FieldOffset(32)]
         public Color4 Color;
 
 
@@ -36,13 +41,13 @@ namespace SharpDX.Verticies
 
         public class Description : IVertexDescription
         {
-            public int Size => 44;
+            public int Size => 48;
             public InputElement[] Elements => _elements;
 
             private static InputElement[] _elements = new[] {
                 new InputElement("POSITION", 0, Format.R32G32B32A32_Float, 0, 0),
                 new InputElement("NORMAL", 0, Format.R32G32B32_Float, 16, 0),
-                new InputElement("COLOR", 0, Format.R32G32B32A32_Float, 28, 0),
+                new InputElement("COLOR", 0, Format.R32G32B32A32_Float, 32, 0),
             };
         }
     }

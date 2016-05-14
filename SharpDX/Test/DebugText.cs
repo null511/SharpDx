@@ -1,67 +1,48 @@
-﻿using SharpDX.Core.Quad;
-using SharpDX.Core.Text;
-using System;
+﻿using SharpDX.Core;
+using SharpDX.DirectWrite;
+using SharpDX.UI;
+using SharpDX.UI.Controls;
+using Label = SharpDX.UI.Controls.Label;
 
 namespace SharpDX.Test
 {
-    class DebugText : IDisposable
+    class DebugText : ContainerBase
     {
-        public ColoredScreenQuad Quad;
+        private PanelColored _panel;
+        private Label _label;
 
-        private TextWriter _textWriter;
-        private Direct2D1.Brush _textBrush;
         private int _fps;
         private int _renderCount;
         private int _entityCount;
+        private int _instanceCount;
         private bool _isValid;
 
 
         public DebugText() {
-            Quad = new ColoredScreenQuad();
+            _panel = new PanelColored()
+                .SetBackgroundColor(new Color4(0f, 0f, 0f, 0.5f));
+
+            _label = new Label()
+                .SetColor(1f, 1f, 1f, 1f)
+                .SetSize(152, 80)
+                .SetWrap(WordWrapping.NoWrap);
+
+            Children.Add(_panel);
+            Children.Add(_label);
         }
 
-        ~DebugText() {
-            Dispose(false);
-        }
-
-        public void Dispose() {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        private void Dispose(bool disposing) {
-            Utilities.Dispose(ref _textWriter);
-        }
-
-        public void Initialize(TextDevice device) {
-            Quad.Color = new Color4(0f, 0f, 0f, 0.4f);
-
-            _textWriter = new TextWriter(Program.TextDevice);
-        }
-
-        public void Resize() {
-            var rect = new Rectangle(8, 8, 200, 64);
-            Quad.SetPosition(8, 8);
-            Quad.SetSize(200, 64);
-
-            _textWriter.SetPosition(12f, 8f);
-            _textWriter.SetSize(192f, 64f);
-        }
-
-        public void Render(TextDevice context) {
-            if (_textBrush == null)
-                _textBrush = context.GetBrush(1f, 1f, 1f, 1f);
-
+        public void Render(Context context) {
             if (!_isValid) {
                 var text = $"FPS: {_fps}\n"
                     +$"Entity Count: {_entityCount}\n"
-                    +$"Render Count: {_renderCount}";
+                    +$"Render Count: {_renderCount}\n"
+                    +$"Instance Count: {_instanceCount}";
 
-                _textWriter.SetText(text);
+                _label.SetText(text);
                 _isValid = true;
             }
 
-            _textWriter.Render(context, _textBrush);
+            //_textWriter.Render(context);
         }
 
         public void SetFps(int fps) {
@@ -76,6 +57,11 @@ namespace SharpDX.Test
 
         public void SetEntityCount(int count) {
             this._entityCount = count;
+            _isValid = false;
+        }
+
+        public void SetInstanceCount(int count) {
+            this._instanceCount = count;
             _isValid = false;
         }
     }

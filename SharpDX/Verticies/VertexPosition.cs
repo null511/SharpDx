@@ -5,11 +5,12 @@ using System.Runtime.InteropServices;
 
 namespace SharpDX.Verticies
 {
-    [StructLayout(LayoutKind.Sequential)]
+    [StructLayout(LayoutKind.Explicit, Size = 16)]
     struct VertexPosition
     {
         public static IVertexDescription Info = new Description();
 
+        [FieldOffset(0)]
         public Vector4 Position;
 
 

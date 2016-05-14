@@ -18,7 +18,6 @@ namespace SharpDX.Test
         private Buffer constantBuffer;
         private Vector3 _sunDir;
         private DataBuffer _streamBuffer;
-        private DataStream _stream;
         private bool isDisposed;
 
         private bool _isBufferValid = false;
@@ -35,6 +34,7 @@ namespace SharpDX.Test
             if (isDisposed) return;
 
             _registry.Clear();
+            Utilities.Dispose(ref constantBuffer);
             Utilities.Dispose(ref vertexShader);
             Utilities.Dispose(ref pixelShader);
             Utilities.Dispose(ref _layout);
