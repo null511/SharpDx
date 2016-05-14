@@ -1,7 +1,6 @@
 ﻿using SharpDX.Core.Filters;
 using SharpDX.Core.Geometry;
 using SharpDX.Core.Shaders;
-using System.Collections.Generic;
 using System.Threading;
 
 namespace SharpDX.Core.SceneTree

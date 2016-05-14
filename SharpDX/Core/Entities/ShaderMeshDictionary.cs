@@ -1,31 +1,26 @@
 ﻿using SharpDX.Core.Geometry;
 using SharpDX.Core.Shaders;
-using System;
 using System.Collections.Generic;
 
 namespace SharpDX.Core.Entities
 {
-    class ShaderMeshDictionary<TMesh, T> : ShaderDictionary<IDictionary<TMesh, T>>
+    class ShaderMeshDictionary<TMesh, T> : ShaderDictionary<MeshDictionary<TMesh, T>>
         where TMesh : Mesh
     {
-        public T Get(IShader shader, TMesh mesh) {
-            var shaderKey = base.Get(shader);
-            if (shaderKey == null) return default(T);
+        public List<T> TryGet(IShader shader, TMesh mesh) {
+            var shaderKey = this.Get(shader);
+            if (shaderKey == null) return null;
 
-            T value;
-            if (shaderKey.TryGetValue(mesh, out value)) return value;
-            return default(T);
+            return shaderKey.Get(mesh);
         }
 
-        public T Get(IShader shader, TMesh mesh, Func<T> newEvent) {
-            var shaderKey = base.Get(shader, () => new Dictionary<TMesh, T>());
+        public List<T> GetOrCreate(IShader shader, TMesh mesh) {
+            var shaderKey = this.GetOrCreate(shader, key => new MeshDictionary<TMesh, T>());
+            return shaderKey.GetOrCreate(mesh, key => new List<T>());
+        }
 
-            T value;
-            if (shaderKey.TryGetValue(mesh, out value)) return value;
-
-            value = newEvent();
-            shaderKey.Add(mesh, value);
-            return value;
+        public MeshDictionary<TMesh, T> GetOrCreate(IShader shader) {
+            return this.GetOrCreate(shader, key => new MeshDictionary<TMesh, T>());
         }
     }
 }

@@ -24,7 +24,7 @@ namespace SharpDX.Core.Entities
         }
 
         public void Apply(DeviceContext context) {
-            context.VertexShader.SetConstantBuffer(1, _buffer);
+            context.InputAssembler.SetVertexBuffers(1, Binding);
         }
     }
 }

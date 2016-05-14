@@ -4,10 +4,10 @@ using System.Collections.Generic;
 
 namespace SharpDX.Core.SceneTree
 {
-    class Tree
+    class Tree : IDisposable
     {
         public readonly TreeDescription Description;
-        public BoundingBox BoundsEx;
+        //public BoundingBox BoundsEx;
 
         private readonly NodeArray<TreeNode> _regions;
         private TreeNode _root;
@@ -19,6 +19,10 @@ namespace SharpDX.Core.SceneTree
             this.Description = description;
 
             _regions = new NodeArray<TreeNode>(description.RegionCountX, description.RegionCountY, description.RegionCountZ);
+        }
+
+        public void Dispose() {
+            Utilities.Dispose(ref _root);
         }
 
         public void Create() {
@@ -136,7 +140,7 @@ namespace SharpDX.Core.SceneTree
         }
 
         public void Test(EntityCollection collection, TestOptions options) {
-            collection.Clear();
+            collection.ClearEntities();
             options.debugCubeList?.Clear();
             _root.Test(collection, options);
         }
@@ -145,6 +149,12 @@ namespace SharpDX.Core.SceneTree
             collection.Clear();
             options.debugCubeList?.Clear();
             _root.TestByRegion(collection, options);
+        }
+
+        public void TestByRegionBatched(Context context, IInstanceCollection collection, int batchLevel, TestOptions options) {
+            collection.Clear();
+            options.debugCubeList?.Clear();
+            _root.TestByRegionBatched(context, collection, batchLevel, options);
         }
 
         public Region GetRegion(int x, int y, int z) {

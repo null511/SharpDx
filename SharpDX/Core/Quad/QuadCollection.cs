@@ -6,9 +6,6 @@ namespace SharpDX.Core.Quad
 {
     class QuadCollection : ObjectCollection<Quad>
     {
-        public Mesh Mesh;
-
-
         public override int Render(DeviceContext context) {
             IShader shader;
             int quadCount;

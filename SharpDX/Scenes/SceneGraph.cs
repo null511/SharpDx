@@ -17,8 +17,10 @@ namespace SharpDX.Scenes
 
         private readonly EntityCollection entities;
         private readonly EntityCollection visible;
-        private readonly List<EntityCollection> visibleInstanced;
+        private InstanceList visibleInstanced;
         private readonly TestOptions _options;
+        private readonly TreeDescription _description;
+        private InstanceList _instances;
         private SceneTreeCubeShader _debugShader;
         private GeoCubeShaderInstanced _shaderInstanced;
         private GeoCubeShader _shader;
@@ -27,16 +29,20 @@ namespace SharpDX.Scenes
         private TreeBuilder _builder;
         private Vector3 sunDir;
 
+
         public Tree Tree;
-        public int EntityCount, RenderCount;
+        public int EntityCount, RenderCount, InstanceCount;
 
 
         public SceneGraph(TreeDescription description) {
+            this._description = description;
+
             _builder = new TreeBuilder(description);
 
             entities = new EntityCollection();
             visible = new EntityCollection();
-            visibleInstanced = new List<EntityCollection>();
+            visibleInstanced = new InstanceList();
+            _instances = new InstanceList();
 
             _shader = new GeoCubeShader();
             _shaderInstanced = new GeoCubeShaderInstanced();
@@ -53,11 +59,14 @@ namespace SharpDX.Scenes
         }
 
         public void Dispose() {
+            Utilities.Dispose(ref Tree);
             Utilities.Dispose(ref _cubeMesh);
             Utilities.Dispose(ref _debugCubeMesh);
             Utilities.Dispose(ref _shader);
             Utilities.Dispose(ref _shaderInstanced);
             Utilities.Dispose(ref _debugShader);
+            Utilities.Dispose(ref _instances);
+            Utilities.Dispose(ref visibleInstanced);
         }
 
         public void Create(DeviceContext context, View view, Vector3 cubeSize, IFilter[] filters) {
@@ -96,9 +105,9 @@ namespace SharpDX.Scenes
             }
         }
 
-        public void Render(DeviceContext context, View view) {
+        public void Render(Context context, View view) {
             if (_disableTree) {
-                RenderCount = entities.Render(context);
+                RenderCount = entities.Render(context.Immediate);
                 return;
             }
 
@@ -109,25 +118,19 @@ namespace SharpDX.Scenes
             
             if (_disableInstancing) {
                 Tree.Test(visible, _options);
-                RenderCount = visible.Render(context);
+                RenderCount = visible.Render(context.Immediate);
             } else {
-                Tree.TestByRegion(visibleInstanced, _options);
-
-                var instances = new InstanceCollection();
-
-                int count = visibleInstanced.Count;
-                for (int i = 0; i < count; i++) {
-                    visibleInstanced[i].CreateInstances(context, instances);
-                }
+                Tree.TestByRegionBatched(context, visibleInstanced, _description.BatchLevel, _options);
 
                 _shaderInstanced.SetVP(view);
-                _shaderInstanced.Update(context);
+                _shaderInstanced.Update(context.Immediate);
 
-                RenderCount = instances.Render(context);
+                InstanceCount = visibleInstanced.Render(context.Immediate);
+                RenderCount = visibleInstanced.EntityCount;
             }
 
             if (_options.EnableDebugCubeRendering)
-                RenderDebugCubes(context);
+                RenderDebugCubes(context.Immediate);
         }
 
         private void RenderDebugCubes(DeviceContext context) {

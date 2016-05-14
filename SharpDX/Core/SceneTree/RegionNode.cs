@@ -1,17 +1,21 @@
 ﻿using SharpDX.Core.Entities;
+using System;
 
 namespace SharpDX.Core.SceneTree
 {
-    class RegionNode
+    class RegionNode : IDisposable
     {
         public RegionMap Map;
         protected BoundingBox Bounds, BoundsEx;
 
         private RenderCube _renderCube;
-        private bool hasChildren;
+        private bool hasChildren, isRoot;
         private RegionNode[] subNodes;
         private int level;
         private long? key;
+
+        private bool hasBatch;
+        private InstanceList batchData;
 
 
         protected RegionNode(int level) {
@@ -22,6 +26,10 @@ namespace SharpDX.Core.SceneTree
         }
 
         //=============================
+
+        public void Dispose() {
+            Utilities.Dispose(ref batchData);
+        }
 
         protected void Create(RegionMap map) {
             this.Map = map;
@@ -35,27 +43,33 @@ namespace SharpDX.Core.SceneTree
             var c = Bounds.Contains(ref @object.Position);
             if (c == ContainmentType.Disjoint) return false;
 
+            // Invalidate batch data
+            hasBatch = false;
+
             if (level < max_level) {
-                if (!hasChildren) createSubNodes(level+1);
+                if (!hasChildren)
+                    createSubNodes(level+1, max_level);
 
                 RegionNode n;
                 for (int i = 0; i < 8; i++) {
                     n = subNodes[i];
+
                     if (n.Insert(@object, max_level)) {
                         BoundingBoxUtils.Expand(ref BoundsEx, ref n.BoundsEx);
                         return true;
                     }
                 }
-                return false;
-            } else {
-                var center = (Bounds.Minimum + Bounds.Maximum) / 2f;
-                if (key == null) key = Map.GetKey(ref center);
-                var cell = Map.GetOrCreateCell(key.Value);
-                cell.Add(@object);
 
-                BoundingBoxUtils.Expand(ref BoundsEx, ref @object.WorldBounds);
-                return true;
+                return false;
             }
+
+            var center = (Bounds.Minimum + Bounds.Maximum) / 2f;
+            if (key == null) key = Map.GetKey(ref center);
+            var cell = Map.GetOrCreateCell(key.Value);
+            cell.Add(@object);
+
+            BoundingBoxUtils.Expand(ref BoundsEx, ref @object.WorldBounds);
+            return true;
         }
 
         protected void Test(EntityCollection collection, TestOptions options) {
@@ -67,11 +81,7 @@ namespace SharpDX.Core.SceneTree
                 level == options.DebugCubeRenderLevel)
                     options.debugCubeList.Add(RenderDebugCube());
 
-            if (!hasChildren) {
-                var cell = Map.GetCell(GetKey());
-                if (cell == null) return;
-                collection.AddRange(cell.OwnedObjects);
-            } else {
+            if (hasChildren) {
                 if (x == ContainmentType.Contains) {
                     for (int i = 0; i < 8; i++)
                         subNodes[i].AddAll(collection, options);
@@ -79,6 +89,33 @@ namespace SharpDX.Core.SceneTree
                     for (int i = 0; i < 8; i++)
                         subNodes[i].Test(collection, options);
                 }
+            } else if (isRoot) {
+                var cell = Map.GetCell(GetKey());
+                if (cell == null) return;
+                collection.AddRange(cell.OwnedObjects);
+            }
+        }
+
+        protected void TestBatched(Context context, IInstanceCollection collection, int batchLevel, TestOptions options) {
+            ContainmentType x;
+            options.Frustum.Contains(ref BoundsEx, out x);
+            if (x == ContainmentType.Disjoint) return;
+
+            if (options.EnableDebugCubeRendering &&
+                level == options.DebugCubeRenderLevel)
+                    options.debugCubeList.Add(RenderDebugCube());
+
+            if (x == ContainmentType.Contains) {
+                AddAllBatches(context, collection, batchLevel, options);
+            }
+            else if (level == batchLevel) {
+                if (!hasBatch)
+                    BatchGeometry(context);
+
+                collection.Add(batchData);
+            } else if (hasChildren) {
+                for (int i = 0; i < 8; i++)
+                    subNodes[i].TestBatched(context, collection, batchLevel, options);
             }
         }
 
@@ -93,18 +130,50 @@ namespace SharpDX.Core.SceneTree
             return _renderCube;
         }
 
-        protected void AddAll(EntityCollection collection, TestOptions options) {
-            if (options.EnableDebugCubeRendering &&
-                level == options.DebugCubeRenderLevel)
+        protected void AddAll(EntityCollection collection, TestOptions options = null) {
+            if (options?.EnableDebugCubeRendering ?? false &&
+                level == options?.DebugCubeRenderLevel)
                     options.debugCubeList.Add(RenderDebugCube());
 
             if (hasChildren) {
                 for (int i = 0; i < 8; i++)
                     subNodes[i].AddAll(collection, options);
-            } else {
+            } else if (isRoot) {
                 var cell = Map.GetCell(GetKey());
-                if (cell != null) collection.AddRange(cell.OwnedObjects);
+
+                if (cell != null)
+                    collection.AddRange(cell.OwnedObjects);
             }
+        }
+
+        protected void AddAllBatches(Context context, IInstanceCollection collection, int batchLevel, TestOptions options = null) {
+            if (options?.EnableDebugCubeRendering ?? false &&
+                level == options?.DebugCubeRenderLevel)
+                    options.debugCubeList.Add(RenderDebugCube());
+
+            if (level == batchLevel) {
+                if (!hasBatch)
+                    BatchGeometry(context);
+
+                collection.Add(batchData);
+            }
+            else if (hasChildren) {
+                for (int i = 0; i < 8; i++)
+                    subNodes[i].AddAllBatches(context, collection, batchLevel, options);
+            }
+        }
+
+        public void BatchGeometry(Context context) {
+            var batchEntities = new EntityCollection();
+            AddAll(batchEntities);
+
+            if (batchData == null)
+                batchData = new InstanceList();
+            else
+                batchData.Dispose();
+
+            batchEntities.CreateInstances(context.Immediate, batchData);
+            hasBatch = true;
         }
 
         //-----------------------------
@@ -117,7 +186,7 @@ namespace SharpDX.Core.SceneTree
             return key.Value;
         }
 
-        private void createSubNodes(int level) {
+        private void createSubNodes(int level, int maxLevel) {
             BoundsEx = new BoundingBox();
             BoundsEx.Minimum = Bounds.Minimum;
             BoundsEx.Maximum = Bounds.Maximum;
@@ -127,13 +196,15 @@ namespace SharpDX.Core.SceneTree
             size = Bounds.Maximum - Bounds.Minimum;
             hasChildren = true;
 
+            var isRoot = level == maxLevel;
+
             min.X = Bounds.Minimum.X;
             min.Y = Bounds.Minimum.Y + size.Y/2f;
             min.Z = Bounds.Minimum.Z + size.Z/2f;
             max.X = Bounds.Maximum.X - size.X/2f;
             max.Y = Bounds.Maximum.Y;
             max.Z = Bounds.Maximum.Z;
-            createNode(Nodes.TFL, ref min, ref max, level);
+            createNode(Nodes.TFL, ref min, ref max, level, isRoot);
 
             min.X = Bounds.Minimum.X + size.X/2f;
             min.Y = Bounds.Minimum.Y + size.Y/2f;
@@ -141,7 +212,7 @@ namespace SharpDX.Core.SceneTree
             max.X = Bounds.Maximum.X;
             max.Y = Bounds.Maximum.Y;
             max.Z = Bounds.Maximum.Z;
-            createNode(Nodes.TFR, ref min, ref max, level);
+            createNode(Nodes.TFR, ref min, ref max, level, isRoot);
 
             min.X = Bounds.Minimum.X;
             min.Y = Bounds.Minimum.Y + size.Y/2f;
@@ -149,7 +220,7 @@ namespace SharpDX.Core.SceneTree
             max.X = Bounds.Maximum.X - size.X/2f;
             max.Y = Bounds.Maximum.Y;
             max.Z = Bounds.Maximum.Z - size.Z/2f;
-            createNode(Nodes.TBL, ref min, ref max, level);
+            createNode(Nodes.TBL, ref min, ref max, level, isRoot);
 
             min.X = Bounds.Minimum.X + size.X/2f;
             min.Y = Bounds.Minimum.Y + size.Y/2f;
@@ -157,7 +228,7 @@ namespace SharpDX.Core.SceneTree
             max.X = Bounds.Maximum.X;
             max.Y = Bounds.Maximum.Y;
             max.Z = Bounds.Maximum.Z - size.Z/2f;
-            createNode(Nodes.TBR, ref min, ref max, level);
+            createNode(Nodes.TBR, ref min, ref max, level, isRoot);
 
             min.X = Bounds.Minimum.X;
             min.Y = Bounds.Minimum.Y;
@@ -165,7 +236,7 @@ namespace SharpDX.Core.SceneTree
             max.X = Bounds.Maximum.X - size.X/2f;
             max.Y = Bounds.Maximum.Y - size.Y/2f;
             max.Z = Bounds.Maximum.Z;
-            createNode(Nodes.BFL, ref min, ref max, level);
+            createNode(Nodes.BFL, ref min, ref max, level, isRoot);
 
             min.X = Bounds.Minimum.X + size.X/2f;
             min.Y = Bounds.Minimum.Y;
@@ -173,7 +244,7 @@ namespace SharpDX.Core.SceneTree
             max.X = Bounds.Maximum.X;
             max.Y = Bounds.Maximum.Y - size.Y/2f;
             max.Z = Bounds.Maximum.Z;
-            createNode(Nodes.BFR, ref min, ref max, level);
+            createNode(Nodes.BFR, ref min, ref max, level, isRoot);
 
             min.X = Bounds.Minimum.X;
             min.Y = Bounds.Minimum.Y;
@@ -181,7 +252,7 @@ namespace SharpDX.Core.SceneTree
             max.X = Bounds.Maximum.X - size.X/2f;
             max.Y = Bounds.Maximum.Y - size.Y/2f;
             max.Z = Bounds.Maximum.Z - size.Z/2f;
-            createNode(Nodes.BBL, ref min, ref max, level);
+            createNode(Nodes.BBL, ref min, ref max, level, isRoot);
 
             min.X = Bounds.Minimum.X + size.X/2f;
             min.Y = Bounds.Minimum.Y;
@@ -189,11 +260,12 @@ namespace SharpDX.Core.SceneTree
             max.X = Bounds.Maximum.X;
             max.Y = Bounds.Maximum.Y - size.Y/2f;
             max.Z = Bounds.Maximum.Z - size.Z/2f;
-            createNode(Nodes.BBR, ref min, ref max, level);
+            createNode(Nodes.BBR, ref min, ref max, level, isRoot);
         }
 
-        private void createNode(Nodes node, ref Vector3 min, ref Vector3 max, int level) {
+        private void createNode(Nodes node, ref Vector3 min, ref Vector3 max, int level, bool isRoot) {
             var n = new RegionNode(level);
+            n.isRoot = isRoot;
             n.BoundsEx.Minimum = n.Bounds.Minimum = min;
             n.BoundsEx.Maximum = n.Bounds.Maximum = max;
             subNodes[(int)node] = n;

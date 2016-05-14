@@ -8,50 +8,60 @@ using Buffer = SharpDX.Direct3D11.Buffer;
 
 namespace SharpDX.Test
 {
-    class ColoredQuadShader : IShader
+    using TVertex = VertexPositionTexture;
+
+    class QuadShaderTextured : IShader
     {
         private VertexShader vertexShader;
         private PixelShader pixelShader;
         private InputLayout _layout;
         private Buffer constantBuffer;
         private Vector2 _position, _size;
-        private Color4 _color;
+        private ShaderResourceView _texture;
+        private DataBuffer _streamBuffer;
+        private SamplerState _sampler;
         private bool _isBufferValid;
-        private bool isDisposed;
 
-        private ShaderActionRegistry _registry;
-        public ShaderActionRegistry ActionRegistry => _registry;
+        public ShaderActionRegistry ActionRegistry {get;}
 
 
-        public ColoredQuadShader() {
-            _registry = new ShaderActionRegistry();
+        public QuadShaderTextured() {
+            ActionRegistry = new ShaderActionRegistry();
         }
 
-        ~ColoredQuadShader() {
+        ~QuadShaderTextured() {
             Dispose(false);
         }
 
         public void Dispose() {
             Dispose(true);
+            GC.SuppressFinalize(this);
         }
 
         protected void Dispose(bool disposing) {
-            if (isDisposed) return;
+            ActionRegistry.Clear();
 
-            _registry.Clear();
+            Utilities.Dispose(ref _sampler);
+            Utilities.Dispose(ref constantBuffer);
             Utilities.Dispose(ref vertexShader);
             Utilities.Dispose(ref pixelShader);
             Utilities.Dispose(ref _layout);
-            isDisposed = true;
         }
 
         public void Load(DeviceContext context)
         {
-            var filename = Path.Combine(Environment.CurrentDirectory, "Resources\\shaders\\quad_colored.fx");
+            var filename = Path.Combine(Environment.CurrentDirectory, "Resources\\shaders\\quad_textured.fx");
 
-            vertexShader = ShaderUtils.CompileVS(context, filename, "VS", "vs_4_0", VertexPosition.Info, out _layout);
+            vertexShader = ShaderUtils.CompileVS(context, filename, "VS", "vs_4_0", TVertex.Info, out _layout);
             pixelShader = ShaderUtils.CompilePS(context, filename, "PS", "ps_4_0");
             constantBuffer = ShaderUtils.CreateConstantBuffer<DataBuffer>(context);
+
+            _sampler = new SamplerState(context.Device, new SamplerStateDescription {
+                AddressU = TextureAddressMode.Wrap,
+                AddressV = TextureAddressMode.Wrap,
+                AddressW = TextureAddressMode.Wrap,
+                Filter = Filter.MinMagMipLinear,
+            });
         }
 
         public void SetPosition(ref Vector2 position) {
@@ -64,8 +74,8 @@ namespace SharpDX.Test
             _isBufferValid = false;
         }
 
-        public void SetColor(ref Color4 color) {
-            _color = color;
+        public void SetTexture(ShaderResourceView texture) {
+            _texture = texture;
             _isBufferValid = false;
         }
 
@@ -77,25 +87,23 @@ namespace SharpDX.Test
 
             context.PixelShader.Set(pixelShader);
             context.PixelShader.SetConstantBuffer(0, constantBuffer);
+            context.PixelShader.SetShaderResource(0, _texture);
+            context.PixelShader.SetSampler(0, _sampler);
         }
 
         public void Update(DeviceContext context) {
-            if (!_isBufferValid) {
+            if (!_isBufferValid)
                 updateBuffer(context);
-                _isBufferValid = true;
-            }
         }
 
-        private DataBuffer _streamBuffer;
         private void updateBuffer(DeviceContext context) {
             _streamBuffer.Position = _position;
             _streamBuffer.Size = _size;
-            _streamBuffer.Color = _color;
             ShaderUtils.UpdateConstantBuffer(context, constantBuffer, ref _streamBuffer);
-            _isBufferValid = false;
+            _isBufferValid = true;
         }
 
-        [StructLayout(LayoutKind.Explicit, Size = 32)]
+        [StructLayout(LayoutKind.Explicit, Size = 16)]
         struct DataBuffer
         {
             [FieldOffset(0)]
@@ -103,9 +111,6 @@ namespace SharpDX.Test
 
             [FieldOffset(8)]
             public Vector2 Size;
-
-            [FieldOffset(16)]
-            public Color4 Color;
         }
     }
 }

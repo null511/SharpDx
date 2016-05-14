@@ -4,12 +4,10 @@ using SharpDX.Verticies;
 
 namespace SharpDX.Core.Quad
 {
-    class QuadMesh : Mesh
+    class QuadMeshColored : Mesh
     {
-        public static QuadMesh Create(DeviceContext context, float depth) {
-            var mesh = new QuadMesh {
-                PrimitiveTopology = Direct3D.PrimitiveTopology.TriangleList,
-            };
+        public QuadMeshColored(DeviceContext context, float depth) {
+            PrimitiveTopology = Direct3D.PrimitiveTopology.TriangleList;
 
             ushort[] i;
             var vertices = new[] {
@@ -21,11 +19,8 @@ namespace SharpDX.Core.Quad
 
             var MeshBuilder = new MeshBuilder<VertexPosition, ushort>(VertexPosition.Info);
             MeshBuilder.AppendVerticies(ref vertices, out i);
-            //MeshBuilder.AppendIndicies(i[0], i[1], i[2], i[3], i[2], i[1]);
             MeshBuilder.AppendIndicies(i[2], i[1], i[0], i[1], i[2], i[3]);
-            MeshBuilder.Build(context, mesh);
-
-            return mesh;
+            MeshBuilder.Build(context, this);
         }
     }
 }

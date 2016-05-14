@@ -14,18 +14,12 @@ namespace SharpDX.Test
             MeshBuilder.AppendCubeLH(cubeSize, (p, n) => new VertexTestCube(p, n, Vector2.Zero));
             MeshBuilder.Build(context, this);
 
-            OnBuildInstance<TestCube, TestCubeMeshInstance>(OnBuildInstance);
+            OnBuildInstance<TestCube, InstanceTestCube>(OnBuildInstance);
         }
 
-        private void OnBuildInstance(TestCube entity, ref TestCubeMeshInstance instance) {
+        private void OnBuildInstance(TestCube entity, ref InstanceTestCube instance) {
             instance.Position = entity.Position;
             instance.Color = entity.Color;
         }
-    }
-
-    struct TestCubeMeshInstance
-    {
-        public Vector3 Position;
-        public Color4 Color;
     }
 }
